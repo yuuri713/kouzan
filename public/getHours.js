@@ -1,36 +1,36 @@
 const fs = require("fs");
+const https = require("https");
 
-// 仮の営業時間データ（あとでAPI連携に差し替え可）
-const openingHours = [
-  "月曜日: 定休日",
-  "火曜日: 11時00分～14時30分",
-  "水曜日: 11時00分～14時30分",
-  "木曜日: 11時00分～14時30分",
-  "金曜日: 11時00分～14時30分",
-  "土曜日: 11時00分～14時30分, 17時00分～19時30分",
-  "日曜日: 11時00分～14時30分, 17時00分～19時30分",
-];
+// 本番の Firebase Functions のURL（後で実際のURLに差し替えてOK！）
+const API_URL = "https://asia-northeast1-<your-project-id>.cloudfunctions.net/getOpeningHours";
 
-// HTMLとして出力
-const html = `
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <style>
-      body { font-family: sans-serif; padding: 1em; }
-      ul { list-style: none; padding: 0; }
-      li { margin: 4px 0; }
-    </style>
-  </head>
-  <body>
-    <h2>営業時間</h2>
-    <ul>
-      ${openingHours.map(day => `<li>${day}</li>`).join("")}
-    </ul>
-  </body>
-</html>
-`;
-
-// 出力先：public/hours.html
-fs.writeFileSync("public/hours.html", html, "utf-8");
-console.log("✅ 営業時間HTMLを出力しました！");
+https.get(API_URL, (res) => {
+  let data = "";
+  res.on("data", (chunk) => {
+    data += chunk;
+  });
+  res.on("end", () => {
+    const openingHours = JSON.parse(data);
+    const html = `
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body { font-family: sans-serif; padding: 1em; }
+            ul { list-style: none; padding: 0; }
+            li { margin: 4px 0; }
+          </style>
+        </head>
+        <body>
+          <h2>営業時間</h2>
+          <ul>
+            ${Object.entries(openingHours).map(([day, time]) => `<li>${day}: ${time}</li>`).join("")}
+          </ul>
+        </body>
+      </html>
+    `;
+    fs.writeFileSync("public/index.html", html, "utf-8");
+  });
+}).on("error", (err) => {
+  console.error("Error fetching opening hours:", err);
+});
