@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>本日の営業時間</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      font-size: 16px;
+      padding: 1em;
+    }
+    #hours {
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div id="hours">本日の営業時間：取得中...</div>
+
+  <script>
+    const hours = {
+      0: "日曜日: 11時00分～14時30分, 17時00分～19時30分",
+      1: "月曜日: 定休日",
+      2: "火曜日: 11時00分～14時30分",
+      3: "水曜日: 11時00分～14時30分",
+      4: "木曜日: 11時00分～14時30分",
+      5: "金曜日: 11時00分～14時30分",
+      6: "土曜日: 11時00分～14時30分, 17時00分～19時30分"
+    };
+    const today = new Date().getDay();
+    const todayHours = hours[today]?.split(": ")[1] || "未設定";
+    document.getElementById("hours").innerText = `本日の営業時間：${todayHours}`;
+  </script>
+</body>
+</html>
