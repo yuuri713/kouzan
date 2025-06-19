@@ -17,7 +17,7 @@ fetch(url)
     }
 
     const fs = require("fs");
-    fs.writeFileSync("public/opening-hours.json", JSON.stringify(hours, null, 2));
+    fs.writeFileSync("opening-hours.json", JSON.stringify(hours, null, 2));
     console.log("✅ 営業時間を書き出しました！");
   })
   .catch(err => {
