@@ -1,27 +1,25 @@
-const fs = require("fs");
 const fetch = require("node-fetch");
 
-const API_KEY = "AIzaSyBVWzaFYKXwdjOcCvcD81WgOZoXVmJLXT0"; // ← あなたのAPIキー
-const PLACE_ID = "ChIJt3vY_7erGWARmfhnxfJbUnI"; // ← あなたのお店のPlace ID
+const apiKey = process.env.API_KEY;
+const placeId = process.env.PLACE_ID;
 
 const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=opening_hours&key=${apiKey}`;
 
 fetch(url)
-  .then((res) => res.json())
-  .then((data) => {
-    const periods = data.result?.opening_hours?.weekday_text;
-    if (!periods) throw new Error("営業時間データが見つかりません");
+  .then(res => res.json())
+  .then(data => {
+    // 👇 ここに追加！
+    console.log("📦 取得データ:", data);  // ← これ！
 
-    // 変換して保存
-    const formatted = {};
-    periods.forEach((line) => {
-      const [day, hours] = line.split(/:\s(.+)/);
-      formatted[day] = hours;
-    });
+    const hours = data.result?.opening_hours?.weekday_text;
+    if (!hours || hours.length === 0) {
+      throw new Error("営業時間情報が見つかりませんでした");
+    }
 
-    fs.writeFileSync("opening-hours.json", JSON.stringify(formatted, null, 2));
-    console.log("✅ 営業時間を更新しました");
+    const fs = require("fs");
+    fs.writeFileSync("public/opening-hours.json", JSON.stringify(hours, null, 2));
+    console.log("✅ 営業時間を書き出しました！");
   })
-  .catch((err) => {
-    console.error("❌ 営業時間の取得に失敗しました:", err);
+  .catch(err => {
+    console.error("❌ 取得エラー:", err);
   });
