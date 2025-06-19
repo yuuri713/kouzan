@@ -1,10 +1,22 @@
-fetch("https://yuuri713.github.io/kouzan/opening-hours.json")
+const apiKey = "AIzaSyBVWzaFYKXwdjOcCvcD81WgOZoXVmJLXT0";
+const placeId = "ChIJt3vY_7erGWARmfhnxfJbUnI";
+
+// 📡 Google Places API のURLを作成
+const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=opening_hours&key=${apiKey}`;
+
+fetch(url)
   .then(response => response.json())
   .then(data => {
+    const hours = data.result?.opening_hours?.weekday_text;
+
+    if (!hours || hours.length === 0) {
+      throw new Error("営業時間情報が見つかりませんでした");
+    }
+
     const ul = document.createElement("ul");
-    Object.entries(data).forEach(([day, hours]) => {
+    hours.forEach(line => {
       const li = document.createElement("li");
-      li.textContent = `${day}: ${hours}`;
+      li.textContent = line;
       ul.appendChild(li);
     });
 
