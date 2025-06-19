@@ -1,22 +1,10 @@
-const apiKey = "AIzaSyBVWzaFYKXwdjOcCvcD81WgOZoXVmJLXT0";
-const placeId = "ChIJt3vY_7erGWARmfhnxfJbUnI";
-
-// 📡 Google Places API のURLを作成
-const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=opening_hours&key=${apiKey}`;
-
-fetch(url)
+fetch("./opening-hours.json")
   .then(response => response.json())
   .then(data => {
-    const hours = data.result?.opening_hours?.weekday_text;
-
-    if (!hours || hours.length === 0) {
-      throw new Error("営業時間情報が見つかりませんでした");
-    }
-
     const ul = document.createElement("ul");
-    hours.forEach(line => {
+    Object.entries(data).forEach(([day, hours]) => {
       const li = document.createElement("li");
-      li.textContent = line;
+      li.textContent = `${day}: ${hours}`;
       ul.appendChild(li);
     });
 
