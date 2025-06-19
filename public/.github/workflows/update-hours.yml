@@ -1,0 +1,30 @@
+name: Update hours.html daily
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 毎日0:00（UTC）に実行（日本時間で9:00）
+  workflow_dispatch:     # 手動実行もできるように
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Run getHours.js
+        run: node public/getHours.js
+
+      - name: Commit and push updated hours.html
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/hours.html
+          git commit -m "🕒 Update hours.html automatically"
+          git push
