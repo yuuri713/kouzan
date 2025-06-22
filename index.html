@@ -1,41 +1,42 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>本日の営業時間</title>
-  <style>
-    body {
-      font-family: "Helvetica Neue", sans-serif;
-      text-align: center;
-      background-color: #f8f8f8;
-      padding: 40px 20px;
-      color: #333;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>営業時間</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 2rem;
+        background: #fffaf5;
+        color: #333;
+      }
+      .hours {
+        font-size: 1.1rem;
+        line-height: 2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>営業時間</h1>
+    <div class="hours" id="hours">読み込み中...</div>
 
-    h1 {
-      font-size: 28px;
-      margin-bottom: 10px;
-    }
-
-    p {
-      font-size: 20px;
-      margin-top: 5px;
-    }
-
-    footer {
-      margin-top: 40px;
-      font-size: 14px;
-      color: #888;
-    }
-  </style>
-</head>
-<body>
-  <h1>本日の営業時間</h1>
-  <p id="todayHours">読み込み中...</p>
-
-  <footer>※自動で最新情報を取得しています</footer>
-
-  <script src="fetch-hours.js"></script>
-</body>
+    <script>
+      fetch('./opening-hours.json')
+        .then((res) => res.json())
+        .then((data) => {
+          const weekdayText = data.opening_hours?.weekday_text;
+          const hoursDiv = document.getElementById('hours');
+          if (weekdayText && weekdayText.length > 0) {
+            hoursDiv.innerHTML = weekdayText.join(' / ');
+          } else {
+            hoursDiv.textContent = '営業時間情報が見つかりませんでした。';
+          }
+        })
+        .catch((err) => {
+          document.getElementById('hours').textContent = '読み込みに失敗しました。';
+          console.error('エラー:', err);
+        });
+    </script>
+  </body>
 </html>
