@@ -1,0 +1,14 @@
+{
+  "name": "kouzan",
+  "version": "1.0.0",
+  "description": "",
+  "main": "fetch-hours.js",
+  "scripts": {
+    "start": "node fetch-hours.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

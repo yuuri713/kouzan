@@ -2,34 +2,34 @@ name: Update Opening Hours
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # 毎日21時（JST）←UTCで12時
+    - cron: '0 12 * * *'  # JST 21:00（UTC 12:00）
   workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: リポジトリをチェックアウト
+      - name: Check out repo
         uses: actions/checkout@v3
 
-      - name: Node.js をセットアップ
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: 依存パッケージをインストール
+      - name: Install dependencies
         run: npm install
 
-      - name: 営業時間データを取得して書き出す
+      - name: Fetch opening hours
         run: node fetch-hours.js
         env:
           API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           PLACE_ID: ${{ secrets.GOOGLE_PLACE_ID }}
 
-      - name: 変更をコミット＆プッシュ
+      - name: Commit & Push
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add opening-hours.json
-          git commit -m "⏰ 自動更新：営業時間データ更新" || echo "No changes to commit"
+          git add public/opening-hours.json
+          git commit -m "🕒 営業時間自動更新" || echo "No changes"
           git push
