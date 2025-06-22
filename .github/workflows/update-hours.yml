@@ -2,7 +2,7 @@ name: Update Opening Hours
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 毎日朝9時 (日本時間 JST = UTC+9 → UTC0時に指定)
+    - cron: '0 9 * * *' # 毎日18時
   workflow_dispatch: # 手動でも実行できるように
 
 jobs:
