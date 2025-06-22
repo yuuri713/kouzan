@@ -1,7 +1,7 @@
 {
   "result": {
     "opening_hours": {
-      "open_now": true,
+      "open_now": false,
       "periods": [
         {
           "close": {
