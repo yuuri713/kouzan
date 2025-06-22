@@ -2,7 +2,7 @@ name: Update Opening Hours
 
 on:
   schedule:
-    - cron: '0 9 * * *' # 毎日18時
+    - cron: '1 1 * * *' # 毎日20時
   workflow_dispatch: # 手動でも実行できるように
 
 jobs:
