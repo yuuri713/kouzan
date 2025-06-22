@@ -1,17 +1,35 @@
-// fetch-hours.js
-const fs = require('fs');
-const axios = require('axios');
+const axios = require("axios");
+const fs = require("fs");
 
-const placeId = "ChIJt3vY_7erGWARmfhnxfJbUnI"; // ←ここに本当に取得したいplaceIDを！
+const API_KEY = "AIzaSyBVWzaFYKXwdjOcCvcD81WgOZoXVmJLXT0";
+const placeId = "ChIJt3vY_ZerGWARmfhnxfJbUnI";
 
-const apiKey = process.env.GOOGLE_API_KEY;
-const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=opening_hours&key=${apiKey}`;
+const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${API_KEY}&language=ja`;
 
-axios.get(url)
-  .then(response => {
-    const hours = response.data.result.opening_hours;
-    fs.writeFileSync('opening-hours.json', JSON.stringify(hours, null, 2));
-  })
-  .catch(error => {
-    console.error(error);
-  });
+async function fetchHours() {
+  try {
+    const response = await axios.get(url);
+    console.log("✅ APIレスポンス確認:", response.data);
+
+    const openingHours = response.data.result?.opening_hours;
+
+    if (!openingHours) {
+      console.error("🚨 opening_hours が見つかりませんでした！");
+      process.exit(1);
+    }
+
+    const jsonData = {
+      result: {
+        opening_hours: openingHours,
+      },
+    };
+
+    fs.writeFileSync("opening-hours.json", JSON.stringify(jsonData, null, 2), "utf-8");
+    console.log("✅ 書き出し成功！");
+  } catch (error) {
+    console.error("❌ エラー:", error.message);
+    process.exit(1); // エラーがあったらGitHub Actionsも失敗させる
+  }
+}
+
+fetchHours();
