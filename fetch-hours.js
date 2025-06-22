@@ -1,17 +1,17 @@
 // fetch-hours.js
-const fs = require("fs");
-const fetch = require("node-fetch");
+const fs = require('fs');
+const axios = require('axios');
 
-const apiKey = process.env.API_KEY;
-const placeId = process.env.PLACE_ID;
+const placeId = "ChIJt3vY_7erGWARmfhnxfJbUnI"; // ←ここに本当に取得したいplaceIDを！
 
-const url = `https://maps.googleapis.com/maps/api/place/details/json?placeid=${placeId}&key=${apiKey}&fields=opening_hours`;
+const apiKey = process.env.GOOGLE_API_KEY;
+const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=opening_hours&key=${apiKey}`;
 
-fetch(url)
-  .then((res) => res.json())
-  .then((data) => {
-    const hours = data.result.opening_hours;
-    fs.writeFileSync("public/opening-hours.json", JSON.stringify(hours, null, 2));
-    console.log("✅ 営業時間データを更新しました！");
+axios.get(url)
+  .then(response => {
+    const hours = response.data.result.opening_hours;
+    fs.writeFileSync('opening-hours.json', JSON.stringify(hours, null, 2));
   })
-  .catch(console.error);
+  .catch(error => {
+    console.error(error);
+  });
