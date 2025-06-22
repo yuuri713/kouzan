@@ -29,8 +29,15 @@
       const container = document.getElementById('hours');
 
       if (weekdayText && weekdayText.length > 0) {
-        // ユニバみたいに1行で表示したい場合
-        container.textContent = weekdayText.join(' / ');
+        // JavaScriptの曜日番号（日曜=0, 月曜=1, ... 土曜=6）
+        const jsDayIndex = new Date().getDay(); // 0〜6
+
+        // weekdayTextの並びは 月→火→...→日 → Googleは「月曜始まり」
+        // Googleの weekday_text は 月曜=0、日曜=6 じゃなく、index=0が月曜っぽい構成
+        const googleDayIndex = (jsDayIndex + 6) % 7; // JS→Googleのindex変換（日曜→6）
+
+        const todayText = weekdayText[googleDayIndex];
+        container.textContent = `本日の営業時間：${todayText.replace(/^.+?:\s*/, '')}`;
       } else {
         container.textContent = '営業時間情報が見つかりませんでした。';
       }
