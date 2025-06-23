@@ -2,7 +2,7 @@ const axios = require("axios");
 const fs = require("fs");
 
 const API_KEY = "AIzaSyBVWzaFYKXwdjOcCvcD81WgOZoXVmJLXT0";
-const placeId = "ChIJt3vY_ZerGWARmfhnxfJbUnI";
+const placeId = "ChIJ5aItaCPLA2ARI-sQQVyBvQs";
 
 const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${API_KEY}&language=ja`;
 
