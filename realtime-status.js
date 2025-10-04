@@ -3,9 +3,19 @@ const JSON_URL = './opening-hours.json';
 const REFRESH_MS = 30000; // 30秒ごとに再判定
 
 // ---- helpers ----
-const toHMnum = (hm) => Number(hm.replace(':',''));
-const hmPretty = (hhmm='') => (hhmm.length===4 ? `${hhmm.slice(0,2)}:${hhmm.slice(2,4)}` : '');
+const toHMnum = (hm) => Number(String(hm).replace(':',''));
 const fmtHM = (h, m) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+// HHMMをどの形でも受け取って "HH:MM" にそろえる
+function hmPretty(hhmm = '') {
+  if (hhmm == null) return '';
+  // すでに "HH:MM"
+  if (/^\d{2}:\d{2}$/.test(String(hhmm))) return String(hhmm);
+  // "HHMM" または number
+  const s = String(hhmm).padStart(4, '0').replace(':','');
+  if (/^\d{4}$/.test(s)) return `${s.slice(0,2)}:${s.slice(2,4)}`;
+  return '';
+}
 
 function nowInJST(offset = 540) {
   const now = new Date();
@@ -13,27 +23,73 @@ function nowInJST(offset = 540) {
   return new Date(utcMs + offset * 60000);
 }
 
+// v1/v0 どちらのノードでも HHMM を取り出す
+function getHHMMfromNode(node) {
+  if (!node) return null;
+  // v0: { time: "1100" }
+  if (typeof node.time === 'string' && node.time.length >= 3) return node.time;
+  // v1: { hour, minute } or { hours, minutes }
+  const h = node.hour ?? node.hours;
+  const m = node.minute ?? node.minutes ?? 0;
+  if (Number.isInteger(h)) return `${String(h).padStart(2,'0')}${String(m).padStart(2,'0')}`;
+  // v1: { startTime: "11:00" } / { endTime: "14:30" }
+  if (typeof node.startTime === 'string') return node.startTime.replace(':','');
+  if (typeof node.endTime   === 'string') return node.endTime.replace(':','');
+  // 文字列 "11:00" をそのまま渡されたケース
+  if (typeof node === 'string') return node.replace(':','');
+  // number 1100 をそのまま渡されたケース
+  if (typeof node === 'number') return String(node);
+  return null;
+}
+
 // periods → 指定曜日(0:日〜6:土)のスロット抽出（深夜跨ぎも吸収）
+// v1(openDay/openTime/closeDay/closeTime) / v0(open/day/time, close/...) 両対応
 function extractDaySlots(periods = [], gday) {
   const slots = [];
+
   for (const p of periods) {
-    if (!p.open || !p.close) continue;
-    const o = p.open, c = p.close;
-    if (o.day === gday && c.day === gday) {
-      slots.push({ start: hmPretty(o.time), end: hmPretty(c.time) });
+    let oDay = p.openDay, cDay = p.closeDay;
+    let oHHMM = null,     cHHMM = null;
+
+    // v1 の時間フィールド
+    if (p.openTime || p.closeTime) {
+      oHHMM = getHHMMfromNode(p.openTime);
+      cHHMM = getHHMMfromNode(p.closeTime);
+    }
+
+    // v0 / フォールバック
+    const o = p.open ?? p.opens ?? p.start ?? p;
+    const c = p.close ?? p.closes ?? p.end   ?? p;
+    if (oDay === undefined) oDay = o?.day ?? o?.openDay ?? p?.day;
+    if (cDay === undefined) cDay = c?.day ?? c?.closeDay ?? p?.day;
+    if (!oHHMM) oHHMM = getHHMMfromNode(o);
+    if (!cHHMM) cHHMM = getHHMMfromNode(c);
+
+    // どれか欠けてたらスキップ（「— / —」の元を潰す）
+    if (typeof oDay !== 'number' || typeof cDay !== 'number' || !oHHMM || !cHHMM) continue;
+
+    const oTime = hmPretty(oHHMM);
+    const cTime = hmPretty(cHHMM);
+
+    // 同日
+    if (oDay === gday && cDay === gday) {
+      slots.push({ start: oTime, end: cTime });
       continue;
     }
-    if (o.day === gday && c.day === ((gday + 1) % 7)) {
-      slots.push({ start: hmPretty(o.time), end: '23:59' });
+    // 当日→翌日
+    if (oDay === gday && cDay === ((gday + 1) % 7)) {
+      slots.push({ start: oTime, end: '23:59' });
       continue;
     }
+    // 前日→当日（0時台クローズ）
     const prev = (gday + 6) % 7;
-    if (o.day === prev && c.day === gday) {
-      slots.push({ start: '00:00', end: hmPretty(c.time) });
+    if (oDay === prev && cDay === gday) {
+      slots.push({ start: '00:00', end: cTime });
       continue;
     }
   }
-  return slots.sort((a,b)=>a.start.localeCompare(b.start));
+
+  return slots.sort((a, b) => a.start.localeCompare(b.start));
 }
 
 // 状態判定
@@ -69,13 +125,13 @@ function normalize(json) {
   const gToday = jstNow.getDay();
   const gTomorrow = (gToday + 1) % 7;
 
-  const todaySlots = extractDaySlots(periods, gToday);
+  const todaySlots    = extractDaySlots(periods, gToday);
   const tomorrowSlots = extractDaySlots(periods, gTomorrow);
 
   return {
     utcOffsetMinutes: offset,
-    today: { gDay:gToday, slots:todaySlots, isClosed: todaySlots.length===0 },
-    tomorrow: { gDay:gTomorrow, slots:tomorrowSlots, isClosed: tomorrowSlots.length===0 },
+    today:    { gDay:gToday,    slots:todaySlots,    isClosed: todaySlots.length===0 },
+    tomorrow:{ gDay:gTomorrow,  slots:tomorrowSlots, isClosed: tomorrowSlots.length===0 },
   };
 }
 
