@@ -113,7 +113,7 @@ function render(jsonRaw) {
   let subline  = '';
 
   if (st.state === '営業中') {
-    headline = 'ただいま、営業しております ▶︎';
+    headline = 'ただいま、営業しております <span class="icon">▶</span>';
     subline  = `営業時間　${formatSlots(slots)}`;
   } else if (st.state === '休憩中') {
     const next = String(st.nextOpen).padStart(4,'0').replace(/(..)(..)/,'$1:$2');
@@ -129,8 +129,8 @@ function render(jsonRaw) {
       : '';
   }
 
-  statusEl.textContent = headline;
-  hoursEl.textContent  = subline;
+  statusEl.innerHTML = headline;   // ← textContent ではなく innerHTML を使う！
+  hoursEl.textContent = subline;
 }
 
 // ---- 起動 ----
