@@ -4,35 +4,72 @@ import axios from 'axios';
 const PLACE_ID = process.env.PLACE_ID;
 const API_KEY  = process.env.PLACES_API_KEY;
 
-// JST日付計算
-const now = new Date();
+// JST
 const jstOffset = 9 * 60;
 function dateInJST(d = new Date()) {
   const utc = d.getTime() + d.getTimezoneOffset() * 60000;
   return new Date(utc + jstOffset * 60000);
 }
-const jstNow = dateInJST(now);
+const jstNow = dateInJST();
 const todayG = jstNow.getDay();
 const tomorrowG = (todayG + 1) % 7;
-const hhmmToPretty = (hhmm) => `${hhmm.slice(0,2)}:${hhmm.slice(2,4)}`;
 
+const hhmmToPretty = (hhmm) => {
+  if (!hhmm) return '';
+  const s = String(hhmm).replace(':', '');
+  return `${s.slice(0,2)}:${s.slice(2,4)}`;
+};
+
+// v1/v0 どちらの形でも HHMM を取り出す
+function getHHMM(node) {
+  if (!node) return null;
+  // v0: { time: "1100" }
+  if (typeof node.time === 'string' && node.time.length >= 3) return node.time;
+  // v1: { hour: 11, minute: 0 } or { hours: 11, minutes: 0 }
+  const h = node.hour ?? node.hours;
+  const m = node.minute ?? node.minutes ?? 0;
+  if (Number.isInteger(h)) {
+    return `${String(h).padStart(2,'0')}${String(m).padStart(2,'0')}`;
+  }
+  // v1: { startTime: "11:00" } / { endTime: "14:30" }
+  if (typeof node.startTime === 'string') return node.startTime.replace(':','');
+  if (typeof node.endTime === 'string')   return node.endTime.replace(':','');
+  return null;
+}
+
+// periods → 指定曜日のスロット抽出（深夜跨ぎも吸収）
 function extractDaySlots(periods = [], gday) {
   const slots = [];
   for (const p of periods) {
-    if (!p.open || !p.close) continue;
-    const o = p.open;
-    const c = p.close;
-    if (o.day === gday && c.day === gday) {
-      slots.push({ start: hhmmToPretty(o.time), end: hhmmToPretty(c.time) });
+    // v1/v0 両対応で open/close を読む
+    const o = p.open ?? p.opens ?? p.start ?? p;
+    const c = p.close ?? p.closes ?? p.end   ?? p;
+
+    const oDay = (o?.day ?? o?.openDay ?? p?.openDay ?? p?.day);
+    const cDay = (c?.day ?? c?.closeDay ?? p?.closeDay ?? p?.day);
+    const oTimeRaw = getHHMM(o);
+    const cTimeRaw = getHHMM(c);
+
+    // 片方でも欠けてたらスキップ（ここで undefined 由来の落ちを防止）
+    if (!oTimeRaw || !cTimeRaw || typeof oDay !== 'number' || typeof cDay !== 'number') continue;
+
+    const oTime = hhmmToPretty(oTimeRaw);
+    const cTime = hhmmToPretty(cTimeRaw);
+
+    // 同日
+    if (oDay === gday && cDay === gday) {
+      slots.push({ start: oTime, end: cTime });
       continue;
     }
-    if (o.day === gday && c.day === ((gday + 1) % 7)) {
-      slots.push({ start: hhmmToPretty(o.time), end: '23:59' });
+    // 当日→翌日
+    if (oDay === gday && cDay === ((gday + 1) % 7)) {
+      slots.push({ start: oTime, end: '23:59' });
       continue;
     }
+    // 前日→当日（0時台クローズ）
     const prev = (gday + 6) % 7;
-    if (o.day === prev && c.day === gday) {
-      slots.push({ start: '00:00', end: hhmmToPretty(c.time) });
+    if (oDay === prev && cDay === gday) {
+      slots.push({ start: '00:00', end: cTime });
       continue;
     }
   }
@@ -40,7 +77,7 @@ function extractDaySlots(periods = [], gday) {
 }
 
 function statusNow(slots, jstDate) {
-  const toNum = (s) => Number(s.replace(':',''));
+  const toNum = (s) => Number(String(s).replace(':',''));
   const cur = toNum(`${String(jstDate.getHours()).padStart(2,'0')}:${String(jstDate.getMinutes()).padStart(2,'0')}`);
   for (const s of slots) {
     const st = toNum(s.start);
@@ -67,7 +104,17 @@ function statusNow(slots, jstDate) {
     };
 
     const { data } = await axios.get(url, { params, timeout: 10000 });
-    const periods = data?.regularOpeningHours?.periods || data?.currentOpeningHours?.periods || [];
+
+    // v1/v0 どちらでも periods を拾う
+    const periods =
+      data?.regularOpeningHours?.periods ||
+      data?.currentOpeningHours?.periods  ||
+      data?.result?.opening_hours?.periods ||
+      [];
+
+    // 形を軽くログ（失敗調査用） ※Actions のログに出るだけ
+    console.log('periods sample:', JSON.stringify(periods?.[0] ?? {}, null, 2));
+
     const todaySlots = extractDaySlots(periods, todayG);
     const tomorrowSlots = extractDaySlots(periods, tomorrowG);
 
@@ -77,6 +124,7 @@ function statusNow(slots, jstDate) {
       placeId: PLACE_ID,
       name: data?.displayName?.text || 'そば処 幸山',
       utcOffsetMinutes: data?.utcOffsetMinutes ?? 540,
+      // 互換フォーマット（realtime-status.js はこの today/tomorrow を読む）
       today: {
         gDay: todayG,
         slots: todaySlots,
@@ -87,6 +135,12 @@ function statusNow(slots, jstDate) {
         gDay: tomorrowG,
         slots: tomorrowSlots,
         isClosed: tomorrowSlots.length === 0,
+      },
+      // v0 互換も残す（万一のバックアップ）
+      result: {
+        opening_hours: {
+          periods: periods
+        }
       }
     };
 
