@@ -39,7 +39,6 @@ function extractDaySlots(periods = [], gday) {
 // 状態判定
 function calcStatus(slots, jstDate) {
   if (!slots?.length) return { state: '定休日' };
-  // ★ 修正ポイント：誤参照だった jstNow → jstDate に統一
   const cur = toHMnum(fmtHM(jstDate.getHours(), jstDate.getMinutes()));
   for (const s of slots) {
     const st = toHMnum(s.start), ed = toHMnum(s.end);
@@ -80,7 +79,7 @@ function normalize(json) {
   };
 }
 
-// 描画
+// 描画（定休日のみ「明日の営業時間」、それ以外は「営業時間」）
 function render(jsonRaw) {
   const statusEl = document.getElementById('status');
   const hoursEl  = document.getElementById('hours');
@@ -105,15 +104,14 @@ function render(jsonRaw) {
   } else if (st.state === '休憩中') {
     const next = String(st.nextOpen).padStart(4,'0').replace(/(..)(..)/,'$1:$2');
     headline = `ただいま、休憩中です（${next}〜再開）`;
-    subline  = `本日の営業時間　${formatSlots(slots)}`;
+    subline  = `営業時間　${formatSlots(slots)}`;
   } else if (st.state === '準備中') {
     headline = st.finishedToday ? '本日の営業は終了しました' : 'ただいま、準備中です';
-    subline  = `本日の営業時間　${formatSlots(slots)}`;
+    subline  = `営業時間　${formatSlots(slots)}`;
   } else { // 定休日
     headline = '本日は定休日です';
-    subline  = (data?.tomorrow?.slots?.length ?? 0)
-      ? `明日の営業時間　${formatSlots(data.tomorrow.slots)}`
-      : '';
+    const ts = data?.tomorrow?.slots || [];
+    subline  = ts.length ? `明日の営業時間　${formatSlots(ts)}` : '';
   }
 
   statusEl.textContent = headline;
