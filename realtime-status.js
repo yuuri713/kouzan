@@ -1,9 +1,11 @@
+// 開店状況をJSTで判定して表示（アイコンなし・テキストのみ）
 const JSON_URL = './opening-hours.json';
 const REFRESH_MS = 30000; // 30秒ごとに再判定
 
-const toHMnum = (hm) => Number(hm.replace(':', ''));
-const hmPretty = (hhmm = '') => (hhmm.length === 4 ? `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}` : '');
-const fmtHM = (h, m) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+// ---- helpers ----
+const toHMnum = (hm) => Number(hm.replace(':',''));
+const hmPretty = (hhmm='') => (hhmm.length===4 ? `${hhmm.slice(0,2)}:${hhmm.slice(2,4)}` : '');
+const fmtHM = (h, m) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 
 function nowInJST(offset = 540) {
   const now = new Date();
@@ -11,6 +13,7 @@ function nowInJST(offset = 540) {
   return new Date(utcMs + offset * 60000);
 }
 
+// periods → 指定曜日(0:日〜6:土)のスロット抽出（深夜跨ぎも吸収）
 function extractDaySlots(periods = [], gday) {
   const slots = [];
   for (const p of periods) {
@@ -30,19 +33,19 @@ function extractDaySlots(periods = [], gday) {
       continue;
     }
   }
-  return slots.sort((a, b) => a.start.localeCompare(b.start));
+  return slots.sort((a,b)=>a.start.localeCompare(b.start));
 }
 
+// 状態判定
 function calcStatus(slots, jstDate) {
   if (!slots?.length) return { state: '定休日' };
-  const cur = toHMnum(fmtHM(jstDate.getHours(), jstDate.getMinutes()));
-
+  const cur = toHMnum(fmtHM(jstDate.getHours(), jstNow.getMinutes ? jstNow.getMinutes() : jstDate.getMinutes()));
   for (const s of slots) {
     const st = toHMnum(s.start), ed = toHMnum(s.end);
     if (st <= cur && cur < ed) return { state: '営業中', current: s };
   }
   const starts = slots.map(s => toHMnum(s.start));
-  const ends = slots.map(s => toHMnum(s.end));
+  const ends   = slots.map(s => toHMnum(s.end));
   const nextOpen = starts.find(st => cur < st);
   if (nextOpen !== undefined) {
     const hadPrev = ends.some(ed => ed <= cur);
@@ -51,8 +54,9 @@ function calcStatus(slots, jstDate) {
   return { state: '準備中', finishedToday: true };
 }
 
-const formatSlots = (slots = []) => slots.map(s => `${s.start}–${s.end}`).join(' / ');
+const formatSlots = (slots=[]) => slots.map(s => `${s.start}–${s.end}`).join(' / ');
 
+// v1/v0 両対応で正規化
 function normalize(json) {
   const periods =
     json?.regularOpeningHours?.periods ||
@@ -60,7 +64,7 @@ function normalize(json) {
     json?.result?.opening_hours?.periods ||
     [];
 
-  const offset = json?.utcOffsetMinutes ?? 540;
+  const offset = json?.utcOffsetMinutes ?? 540; // JSTデフォ
   const jstNow = nowInJST(offset);
   const gToday = jstNow.getDay();
   const gTomorrow = (gToday + 1) % 7;
@@ -70,50 +74,54 @@ function normalize(json) {
 
   return {
     utcOffsetMinutes: offset,
-    today: { gDay: gToday, slots: todaySlots, isClosed: todaySlots.length === 0 },
-    tomorrow: { gDay: gTomorrow, slots: tomorrowSlots, isClosed: tomorrowSlots.length === 0 }
+    today: { gDay:gToday, slots:todaySlots, isClosed: todaySlots.length===0 },
+    tomorrow: { gDay:gTomorrow, slots:tomorrowSlots, isClosed: tomorrowSlots.length===0 },
   };
 }
 
+// 描画
 function render(jsonRaw) {
   const statusEl = document.getElementById('status');
-  const hoursEl = document.getElementById('hours');
+  const hoursEl  = document.getElementById('hours');
 
   if (!jsonRaw) {
     statusEl.textContent = '現在、営業時間を取得できません';
-    hoursEl.textContent = '';
+    hoursEl.textContent  = '';
     return;
   }
 
   const data = normalize(jsonRaw);
   const jstNow = nowInJST(data.utcOffsetMinutes);
-  const slots = data.today.slots || [];
-  const st = calcStatus(slots, jstNow);
+  const slots  = data.today.slots || [];
+  const st     = calcStatus(slots, jstNow);
 
   let headline = '';
-  let subline = '';
+  let subline  = '';
 
   if (st.state === '営業中') {
-    headline = 'ただいま、営業しております <span class="icon">▶</span>';
-    subline = `営業時間　${formatSlots(slots)}`;
+    headline = 'ただいま、営業しております';
+    subline  = `営業時間　${formatSlots(slots)}`;
   } else if (st.state === '休憩中') {
-    const next = String(st.nextOpen).padStart(4, '0').replace(/(..)(..)/, '$1:$2');
-    headline = `ただいま、休憩中です <span class="icon">⏸</span>（${next}〜再開）`;
-    subline = `本日の営業時間　${formatSlots(slots)}`;
+    const next = String(st.nextOpen).padStart(4,'0').replace(/(..)(..)/,'$1:$2');
+    headline = `ただいま、休憩中です（${next}〜再開）`;
+    subline  = `本日の営業時間　${formatSlots(slots)}`;
   } else if (st.state === '準備中') {
-    headline = (st.finishedToday ? '本日の営業は終了しました' : 'ただいま、準備中です') + ' <span class="icon">⏸</span>';
-    subline = `本日の営業時間　${formatSlots(slots)}`;
-  } else {
-    headline = '本日は定休日です <span class="icon">⏸</span>';
-    subline = (data?.tomorrow?.slots?.length ?? 0) > 0 ? `明日の営業時間　${formatSlots(data.tomorrow.slots)}` : '';
+    headline = st.finishedToday ? '本日の営業は終了しました' : 'ただいま、準備中です';
+    subline  = `本日の営業時間　${formatSlots(slots)}`;
+  } else { // 定休日
+    headline = '本日は定休日です';
+    subline  = (data?.tomorrow?.slots?.length ?? 0)
+      ? `明日の営業時間　${formatSlots(data.tomorrow.slots)}`
+      : '';
   }
 
-  statusEl.innerHTML = headline; // ← spanを反映させるためinnerHTMLに！
-  hoursEl.textContent = subline;
+  statusEl.textContent = headline;
+  hoursEl.textContent  = subline;
 }
 
+// 起動
 async function loadJSON() {
-  const res = await fetch(JSON_URL, { cache: 'no-store' });
+  const res = await fetch(`${JSON_URL}?v=${Date.now()}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`opening-hours.json fetch failed: ${res.status}`);
   return res.json();
 }
@@ -126,8 +134,7 @@ async function boot() {
   } catch (e) {
     console.error(e);
     document.getElementById('status').textContent = '現在、営業時間を取得できません';
-    document.getElementById('hours').textContent = '時間をおいて再読み込みしてください';
+    document.getElementById('hours').textContent  = '時間をおいて再読み込みしてください';
   }
 }
-
 boot();
