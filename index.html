@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>営業時間</title>
 
-  <!-- フォント（Shippori Mincho） -->
+  <!-- Shippori Mincho -->
   <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
     :root {
-      --fg: #fff;        /* メイン文字色 */
-      --sub-fg: #fff;    /* サブ文字色 */
+      --fg: #fff;      /* 文字色（白） */
+      --sub-fg: #fff;  /* サブ文字色 */
     }
 
     html, body {
@@ -22,14 +22,19 @@
       font-family: 'Shippori Mincho', serif;
     }
 
+    /* iframe余白をゼロにするためにbody直下のdivに余白をつけない */
     .wrap {
-      padding: 20px 24px;
+      padding: 0;
+      margin: 0;
       line-height: 1.9;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
-    /* 上段：ステータス */
+    /* 営業中・営業時間外テキスト */
     #status {
-      font-size: clamp(22px, 4vw, 18px);
+      font-size: clamp(20px, 4vw, 18px);
       font-weight: 600;
       letter-spacing: .12em;
       display: flex;
@@ -37,46 +42,37 @@
       gap: .5em;
       white-space: nowrap;
     }
-
     #status .icon {
       font-size: 0.9em;
       opacity: .9;
     }
 
-    /* 下段：営業時間 */
+    /* 本日の営業時間 */
     #hours {
-      margin-top: .6em;
-      font-size: clamp(16px, 2.8vw, 18px);
+      margin-top: .4em;
+      font-size: clamp(14px, 2.8vw, 18px);
       color: var(--sub-fg);
       letter-spacing: .2em;
       white-space: nowrap;
     }
 
-    /* ---------- スマホ用フォントサイズ ---------- */
+    /* スマホサイズ用フォント微調整 */
     @media (max-width: 480px) {
-      .wrap {
-        padding: 14px 16px;
-        line-height: 1.7;
-      }
-
       #status {
-        font-size: 14px;   /* スマホ用ステータス文字サイズ */
+        font-size: clamp(18px, 5vw, 14px);
       }
-
       #hours {
-        font-size: 14px;   /* スマホ用営業時間文字サイズ */
+        font-size: clamp(12px, 3vw, 14px);
       }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <!-- 初期表示：「読み込み中…」 -->
     <div id="status">読み込み中…</div>
     <div id="hours"></div>
   </div>
 
-  <!-- リアルタイム切替用スクリプト -->
-  <script type="module" src="./realtime-status.js"></script>
+  <script defer src="./realtime-status.js"></script>
 </body>
 </html>
