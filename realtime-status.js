@@ -39,7 +39,8 @@ function extractDaySlots(periods = [], gday) {
 // 状態判定
 function calcStatus(slots, jstDate) {
   if (!slots?.length) return { state: '定休日' };
-  const cur = toHMnum(fmtHM(jstDate.getHours(), jstNow.getMinutes ? jstNow.getMinutes() : jstDate.getMinutes()));
+  // ★ 修正ポイント：誤参照だった jstNow → jstDate に統一
+  const cur = toHMnum(fmtHM(jstDate.getHours(), jstDate.getMinutes()));
   for (const s of slots) {
     const st = toHMnum(s.start), ed = toHMnum(s.end);
     if (st <= cur && cur < ed) return { state: '営業中', current: s };
@@ -119,20 +120,35 @@ function render(jsonRaw) {
   hoursEl.textContent  = subline;
 }
 
-// 起動
+// ---- 起動（キャッシュバスター＆パース失敗ログ付き） ----
 async function loadJSON() {
-  const res = await fetch(`${JSON_URL}?v=${Date.now()}`, { cache: 'no-store' });
+  const url = `${JSON_URL}${JSON_URL.includes('?') ? '&' : '?'}v=${Date.now()}`;
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`opening-hours.json fetch failed: ${res.status}`);
-  return res.json();
+
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('JSON parse error. Response was:\n', text);
+    throw e;
+  }
 }
 
 async function boot() {
   try {
     const json = await loadJSON();
     render(json);
-    setInterval(() => render(json), REFRESH_MS);
+    setInterval(async () => {
+      try {
+        const j = await loadJSON();
+        render(j);
+      } catch (e) {
+        console.error('periodic reload failed:', e);
+      }
+    }, REFRESH_MS);
   } catch (e) {
-    console.error(e);
+    console.error('boot error:', e);
     document.getElementById('status').textContent = '現在、営業時間を取得できません';
     document.getElementById('hours').textContent  = '時間をおいて再読み込みしてください';
   }
