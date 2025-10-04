@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>営業時間</title>
 
-  <!-- Shippori Mincho -->
+  <!-- フォント（Shippori Mincho） -->
   <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
     :root {
-      --fg: #fff;                /* 文字色（白） */
-      --sub-fg: #eee;            /* サブ文字色 */
+      --fg: #fff;        /* メイン文字色 */
+      --sub-fg: #fff;    /* サブ文字色 */
     }
-    /* 背景透過にしたいので body 自体は透明 */
+
     html, body {
       margin: 0;
       padding: 0;
@@ -23,14 +23,13 @@
     }
 
     .wrap {
-      /* 透過前提なので余白だけ整える（必要なら消してOK） */
       padding: 20px 24px;
       line-height: 1.9;
     }
 
-    /* 上段：営業中 / 営業時間外 の表示 */
+    /* 上段：ステータス */
     #status {
-      font-size: clamp(20px, 4vw, 42px);
+      font-size: clamp(22px, 4vw, 18px);
       font-weight: 600;
       letter-spacing: .12em;
       display: flex;
@@ -38,32 +37,46 @@
       gap: .5em;
       white-space: nowrap;
     }
+
     #status .icon {
       font-size: 0.9em;
       opacity: .9;
     }
 
-    /* 下段：本日の営業時間 */
+    /* 下段：営業時間 */
     #hours {
       margin-top: .6em;
-      font-size: clamp(14px, 2.8vw, 24px);
+      font-size: clamp(16px, 2.8vw, 18px);
       color: var(--sub-fg);
       letter-spacing: .2em;
       white-space: nowrap;
     }
 
-    /* 最低限のレスポンシブ余白 */
+    /* ---------- スマホ用フォントサイズ ---------- */
     @media (max-width: 480px) {
-      .wrap { padding: 14px 16px; }
+      .wrap {
+        padding: 14px 16px;
+        line-height: 1.7;
+      }
+
+      #status {
+        font-size: 14px;   /* スマホ用ステータス文字サイズ */
+      }
+
+      #hours {
+        font-size: 14px;   /* スマホ用営業時間文字サイズ */
+      }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <!-- 初期表示：「読み込み中…」 -->
     <div id="status">読み込み中…</div>
     <div id="hours"></div>
   </div>
 
-  <script defer src="./realtime-status.js"></script>
+  <!-- リアルタイム切替用スクリプト -->
+  <script type="module" src="./realtime-status.js"></script>
 </body>
 </html>
