@@ -2,12 +2,24 @@ name: Update Opening Hours
 
 on:
   schedule:
-    - cron: '0 11 * * *' # 毎日20時
-  workflow_dispatch: # 手動でも実行できるように
+    # JST 0:00（UTC+9）＝ UTC 15:00
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # ← opening-hours.json を push できるように
+
+concurrency:
+  group: update-hours
+  cancel-in-progress: true
 
 jobs:
   update-hours:
     runs-on: ubuntu-latest
+    env:
+      # fetch-hours.js が読み取る環境変数。GitHub Secrets に設定しておく
+      PLACE_ID: ${{ secrets.PLACE_ID }}
+      PLACES_API_KEY: ${{ secrets.PLACES_API_KEY }}
 
     steps:
       - name: リポジトリをチェックアウト
@@ -24,7 +36,9 @@ jobs:
       - name: fetch-hours.js を実行
         run: node fetch-hours.js
 
+      # 成功して opening-hours.json が存在する場合のみコミット＆プッシュ
       - name: JSONファイルをコミット＆プッシュ
+        if: ${{ success() && hashFiles('opening-hours.json') != '' }}
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
