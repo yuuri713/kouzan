@@ -1,145 +1,110 @@
-// realtime-status.js
-// opening-hours.json を1回だけ取得し、現在時刻と照合して
-// 「✅ただいま営業中 / ❌営業時間外」をリアルタイム表示します。
+const JSON_URL = './opening-hours.json'; // GitHub Actionsで毎日更新されるJSON
+const REFRESH_MS = 30000;                // 30秒ごとに再判定
 
-const JSON_URL = './opening-hours.json'; // ルートに置いてある想定
-
-// ---------- ユーティリティ ----------
-const HHMM_to_min = (hhmm) => {
-  const h = parseInt(hhmm.slice(0, 2), 10);
-  const m = parseInt(hhmm.slice(2, 4), 10);
-  return h * 60 + m;
-};
-
-const min_to_HHMM = (min) => {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
-// Google Places の曜日: 0=日,1=月,…6=土
-const todayGP = () => {
-  const d = new Date();
-  // ローカル時間でOK（JSTで閲覧ならJST基準）
-  let wd = d.getDay(); // 0=Sun
-  return wd;
-};
-
-// 現在時刻（分）
-const nowMinutes = () => {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
-};
-
-// periods から「今日」に該当する時間帯（分単位[start,end]）配列を作る
-function buildTodayIntervals(periods) {
-  const today = todayGP();            // 0..6 (日..土)
-  const prev = (today + 6) % 7;
-  const intervals = [];
-
-  for (const p of periods) {
-    if (!p.open || !p.close) continue;
-
-    const od = p.open.day;
-    const cd = p.close.day;
-    const ot = HHMM_to_min(p.open.time);
-    const ct = HHMM_to_min(p.close.time);
-
-    // 1) 今日開店→今日閉店
-    if (od === today && cd === today) {
-      intervals.push([ot, ct]);
-      continue;
-    }
-
-    // 2) 今日開店→翌日閉店（24:00跨ぎ）
-    if (od === today && cd === (today + 1) % 7) {
-      intervals.push([ot, 24 * 60]); // 24:00まで
-      continue;
-    }
-
-    // 3) 昨日開店→今日閉店（深夜営業で今日の0:00〜）
-    if (od === prev && cd === today) {
-      intervals.push([0, ct]); // 0:00からctまで
-      continue;
-    }
-  }
-
-  // ソート & つながる帯はマージ（保険）
-  intervals.sort((a, b) => a[0] - b[0]);
-  const merged = [];
-  for (const itv of intervals) {
-    if (!merged.length || merged[merged.length - 1][1] < itv[0]) {
-      merged.push([...itv]);
-    } else {
-      merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], itv[1]);
-    }
-  }
-  return merged;
+// JST現在時刻を返す
+function nowInJST(offset = 540) {
+  const now = new Date();
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utcMs + offset * 60000);
 }
 
-// UI更新
-function render(statusOpen, label, bandsText) {
-  const $status = document.getElementById('status');
-  const $hours  = document.getElementById('hours');
-
-  if (!$status || !$hours) return;
-
-  $status.innerHTML = statusOpen
-    ? `✅ ただいま、営業しております <span class="icon">▶</span>`
-    : `❌ 営業時間外です <span class="icon">▶</span>`;
-
-  $hours.textContent = `営業時間　${bandsText}`;
+// "HH:MM" → 数値(例: 1130)
+function hmToNum(hm) {
+  return Number(hm.replace(':',''));
 }
 
-// メイン
-async function main() {
+// ステータス判定
+function calcStatus(slots, jstDate) {
+  if (!slots?.length) return { state: '定休日' };
+  const cur = hmToNum(`${String(jstDate.getHours()).padStart(2, '0')}:${String(jstDate.getMinutes()).padStart(2, '0')}`);
+  const starts = slots.map(s => hmToNum(s.start));
+  const ends   = slots.map(s => hmToNum(s.end));
+
+  // 営業中判定
+  for (const s of slots) {
+    const st = hmToNum(s.start);
+    const ed = hmToNum(s.end);
+    if (st <= cur && cur < ed) return { state: '営業中' };
+  }
+
+  // 次の営業枠があるか
+  const nextOpen = starts.find(st => cur < st);
+  if (nextOpen !== undefined) {
+    const hadPrev = ends.some(ed => ed <= cur);
+    return { state: hadPrev ? '休憩中' : '準備中', nextOpen };
+  }
+
+  // 全枠終了
+  return { state: '準備中', finishedToday: true };
+}
+
+// スロット整形
+function formatSlots(slots) {
+  return slots.map(s => `${s.start}–${s.end}`).join(' / ');
+}
+
+// 表示更新
+function setStatusHTML(json) {
+  const statusEl = document.getElementById('status');
+  const hoursEl = document.getElementById('hours');
+
+  if (!json?.today) {
+    statusEl.textContent = '現在、営業時間を取得できません';
+    hoursEl.textContent = '';
+    return;
+  }
+
+  const jstNow = nowInJST(json.utcOffsetMinutes ?? 540);
+  const today = json.today;
+  const slots = today.slots || [];
+  const st = calcStatus(slots, jstNow);
+
+  let headline = '';
+  let subline  = '';
+
+  if (st.state === '営業中') {
+    headline = 'ただいま、営業しております ▶︎';
+    subline  = `営業時間　${formatSlots(slots)}`;
+  } else if (st.state === '休憩中') {
+    const next = String(st.nextOpen).padStart(4,'0').replace(/(..)(..)/, '$1:$2');
+    headline = `ただいま、休憩中です（${next}〜再開）`;
+    subline  = `本日の営業時間　${formatSlots(slots)}`;
+  } else if (st.state === '準備中') {
+    headline = st.finishedToday
+      ? '本日の営業は終了しました'
+      : 'ただいま、準備中です';
+    subline  = `本日の営業時間　${formatSlots(slots)}`;
+  } else if (st.state === '定休日') {
+    headline = '本日は定休日です';
+    subline  = (json?.tomorrow?.slots?.length ?? 0) > 0
+      ? `明日の営業時間　${formatSlots(json.tomorrow.slots)}`
+      : '';
+  }
+
+  statusEl.textContent = headline;
+  hoursEl.textContent = subline;
+}
+
+// JSON取得
+async function loadJSON() {
+  const res = await fetch(JSON_URL, { cache: 'no-store' });
+  if (!res.ok) throw new Error('opening-hours.json の取得に失敗');
+  return res.json();
+}
+
+// 初期化
+async function init() {
   try {
-    const res = await fetch(JSON_URL, { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const json = await loadJSON();
+    setStatusHTML(json);
 
-    const opening = data?.result?.opening_hours;
-    const periods = opening?.periods;
-    const weekday_text = opening?.weekday_text;
-
-    if (!Array.isArray(periods)) {
-      render(false, '', '営業時間情報が取得できませんでした');
-      return;
-    }
-
-    // 今日の営業帯（分）を作る
-    const intervals = buildTodayIntervals(periods);
-
-    // 画面に出す「11:00-14:30 / 17:00-19:30」的な文字列を組み立て
-    const bandsText = intervals.length
-      ? intervals.map(([s, e]) => `${min_to_HHMM(s)}-${min_to_HHMM(e)}`).join(' / ')
-      : // intervalsが空でもweekday_textがあればfallback
-        (() => {
-          if (Array.isArray(weekday_text)) {
-            const t = todayGP(); // 0..6 日..土
-            // weekday_text は「月曜日: 10時00分～18時00分」形式（順番が月〜日のことが多い）
-            // 万一順が違っても、見た目のテキストをまるごと表示する fallback
-            const line = weekday_text[t === 0 ? 6 : t - 1] || weekday_text[0];
-            return (line || '').replace(/^[^:：]+[:：]\s*/, '').replace(/、/g, ' / ');
-          }
-          return '—';
-        })();
-
-    // 初回表示
-    let current = nowMinutes();
-    let openNow = intervals.some(([s, e]) => current >= s && current < e);
-    render(openNow, '', bandsText);
-
-    // 以後は1分ごとに判定だけ更新（JSONは再取得しない＝無料）
-    setInterval(() => {
-      current = nowMinutes();
-      openNow = intervals.some(([s, e]) => current >= s && current < e);
-      render(openNow, '', bandsText);
-    }, 60 * 1000);
+    // 30秒ごとに再判定
+    setInterval(() => setStatusHTML(json), REFRESH_MS);
   } catch (e) {
-    render(false, '', '営業時間情報の取得に失敗しました');
     console.error(e);
+    document.getElementById('status').textContent = '営業時間を取得できませんでした';
+    document.getElementById('hours').textContent = '時間をおいて再読み込みしてください';
   }
 }
 
-main();
+init();
