@@ -22,7 +22,7 @@
       font-family: 'Shippori Mincho', serif;
     }
 
-    /* iframe余白をゼロにするためにbody直下のdivに余白をつけない */
+    /* iframe余白なし用 */
     .wrap {
       padding: 0;
       margin: 0;
@@ -32,7 +32,7 @@
       justify-content: center;
     }
 
-    /* 営業中・営業時間外テキスト */
+    /* 上段：営業中 or 営業時間外 */
     #status {
       font-size: clamp(20px, 4vw, 18px);
       font-weight: 600;
@@ -42,12 +42,21 @@
       gap: .5em;
       white-space: nowrap;
     }
+
+    /* ▶︎マークを丸で囲むデザイン */
     #status .icon {
-      font-size: 0.9em;
-      opacity: .9;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.4em;              /* 円のサイズ */
+      height: 1.4em;
+      border: 2px solid var(--fg); /* 円の線 */
+      border-radius: 50%;       /* 丸くする */
+      font-size: 0.7em;          /* ▶︎の大きさ */
+      margin-left: 0.3em;        /* 文字との間隔 */
     }
 
-    /* 本日の営業時間 */
+    /* 下段：本日の営業時間 */
     #hours {
       margin-top: .4em;
       font-size: clamp(14px, 2.8vw, 18px);
@@ -56,13 +65,18 @@
       white-space: nowrap;
     }
 
-    /* スマホサイズ用フォント微調整 */
+    /* スマホ用調整 */
     @media (max-width: 480px) {
       #status {
-        font-size: clamp(18px, 5vw, 14px);
+        font-size: clamp(18px, 5vw, 16px);
       }
       #hours {
-        font-size: clamp(12px, 3vw, 14px);
+        font-size: clamp(12px, 3vw, 16px);
+      }
+      #status .icon {
+        width: 1.2em;
+        height: 1.2em;
+        font-size: 0.65em;
       }
     }
   </style>
