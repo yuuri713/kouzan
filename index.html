@@ -45,16 +45,25 @@
 
     /* ▶︎マークを丸で囲むデザイン */
     #status .icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.4em;
-      height: 1.4em;
-      border: 2px solid var(--fg);
-      border-radius: 50%;
-      font-size: 0.7em;
-      margin-left: 0.3em;
-    }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8em;          /* ← サイズを少し大きく */
+  height: 1.8em;
+  border: 1.5px solid var(--fg); /* ← 線を少し細く */
+  border-radius: 50%;
+  font-size: 0.7em;
+  margin-left: 0.5em;   /* ← 左の余白も少し広げて呼吸感アップ */
+}
+@media (max-width: 480px) {
+  #status .icon {
+    width: 1.6em;
+    height: 1.6em;
+    border: 1.2px solid var(--fg);
+    font-size: 0.65em;
+    margin-left: 0.4em;
+  }
+}
 
     /* 下段：本日の営業時間 */
     #hours {
