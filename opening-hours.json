@@ -1,97 +1,128 @@
 {
+  "fetchedAtUTC": "2025-10-04T16:08:20.081Z",
+  "fetchedAtJST": "2025-10-05T01:08:19.939+09:00",
+  "placeId": "ChIJ5aItaCPLA2ARI-sQQVyBvQs",
+  "name": "関ヶ原 そば処幸山",
+  "utcOffsetMinutes": 540,
+  "today": {
+    "gDay": 0,
+    "slots": [
+      {
+        "start": "11:00",
+        "end": "14:30"
+      },
+      {
+        "start": "17:00",
+        "end": "19:30"
+      }
+    ],
+    "statusNow": "準備中",
+    "isClosed": false
+  },
+  "tomorrow": {
+    "gDay": 1,
+    "slots": [],
+    "isClosed": true
+  },
   "result": {
     "opening_hours": {
-      "open_now": false,
       "periods": [
         {
-          "close": {
-            "day": 0,
-            "time": "1430"
-          },
           "open": {
             "day": 0,
-            "time": "1100"
+            "hour": 11,
+            "minute": 0
+          },
+          "close": {
+            "day": 0,
+            "hour": 14,
+            "minute": 30
           }
         },
         {
-          "close": {
-            "day": 0,
-            "time": "1930"
-          },
           "open": {
             "day": 0,
-            "time": "1700"
+            "hour": 17,
+            "minute": 0
+          },
+          "close": {
+            "day": 0,
+            "hour": 19,
+            "minute": 30
           }
         },
         {
+          "open": {
+            "day": 2,
+            "hour": 11,
+            "minute": 0
+          },
           "close": {
             "day": 2,
-            "time": "1430"
-          },
-          "open": {
-            "day": 2,
-            "time": "1100"
+            "hour": 14,
+            "minute": 30
           }
         },
         {
-          "close": {
-            "day": 3,
-            "time": "1430"
-          },
           "open": {
             "day": 3,
-            "time": "1100"
+            "hour": 11,
+            "minute": 0
+          },
+          "close": {
+            "day": 3,
+            "hour": 14,
+            "minute": 30
           }
         },
         {
-          "close": {
-            "day": 4,
-            "time": "1430"
-          },
           "open": {
             "day": 4,
-            "time": "1100"
+            "hour": 11,
+            "minute": 0
+          },
+          "close": {
+            "day": 4,
+            "hour": 14,
+            "minute": 30
           }
         },
         {
-          "close": {
-            "day": 5,
-            "time": "1430"
-          },
           "open": {
             "day": 5,
-            "time": "1100"
+            "hour": 11,
+            "minute": 0
+          },
+          "close": {
+            "day": 5,
+            "hour": 14,
+            "minute": 30
           }
         },
         {
-          "close": {
-            "day": 6,
-            "time": "1430"
-          },
           "open": {
             "day": 6,
-            "time": "1100"
+            "hour": 11,
+            "minute": 0
+          },
+          "close": {
+            "day": 6,
+            "hour": 14,
+            "minute": 30
           }
         },
         {
-          "close": {
-            "day": 6,
-            "time": "1930"
-          },
           "open": {
             "day": 6,
-            "time": "1700"
+            "hour": 17,
+            "minute": 0
+          },
+          "close": {
+            "day": 6,
+            "hour": 19,
+            "minute": 30
           }
         }
-      ],
-      "weekday_text": [
-        "月曜日: 定休日",
-        "火曜日: 11時00分～14時30分",
-        "水曜日: 11時00分～14時30分",
-        "木曜日: 11時00分～14時30分",
-        "金曜日: 11時00分～14時30分",
-        "土曜日: 11時00分～14時30分, 17時00分～19時30分",
-        "日曜日: 11時00分～14時30分, 17時00分～19時30分"
       ]
     }
   }
