@@ -10,8 +10,8 @@
 
   <style>
     :root {
-      --fg: #fff;      /* 文字色（白） */
-      --sub-fg: #fff;  /* サブ文字色 */
+      --fg: #fff;
+      --sub-fg: #fff;
     }
 
     html, body {
@@ -22,7 +22,6 @@
       font-family: 'Shippori Mincho', serif;
     }
 
-    /* iframe余白なし用 */
     .wrap {
       padding: 0;
       margin: 0;
@@ -34,13 +33,14 @@
 
     /* 上段：営業中 or 営業時間外 */
     #status {
-      font-size: clamp(20px, 4vw, 18px);
-      font-weight: 600;
+      font-size: 18px; /* PC版 */
+      font-weight: 500;
       letter-spacing: .12em;
       display: flex;
       align-items: center;
       gap: .5em;
       white-space: nowrap;
+      color: var(--fg);
     }
 
     /* ▶︎マークを丸で囲むデザイン */
@@ -48,18 +48,18 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.4em;              /* 円のサイズ */
+      width: 1.4em;
       height: 1.4em;
-      border: 2px solid var(--fg); /* 円の線 */
-      border-radius: 50%;       /* 丸くする */
-      font-size: 0.7em;          /* ▶︎の大きさ */
-      margin-left: 0.3em;        /* 文字との間隔 */
+      border: 2px solid var(--fg);
+      border-radius: 50%;
+      font-size: 0.7em;
+      margin-left: 0.3em;
     }
 
     /* 下段：本日の営業時間 */
     #hours {
       margin-top: .4em;
-      font-size: clamp(14px, 2.8vw, 18px);
+      font-size: 18px; /* PC版 */
       color: var(--sub-fg);
       letter-spacing: .2em;
       white-space: nowrap;
@@ -68,10 +68,10 @@
     /* スマホ用調整 */
     @media (max-width: 480px) {
       #status {
-        font-size: clamp(18px, 5vw, 16px);
+        font-size: 16px; /* SP版 */
       }
       #hours {
-        font-size: clamp(12px, 3vw, 16px);
+        font-size: 16px; /* SP版 */
       }
       #status .icon {
         width: 1.2em;
