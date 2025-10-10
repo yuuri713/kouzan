@@ -65,7 +65,7 @@ function extractDaySlots(periods = [], gday) {
     if (!oHHMM) oHHMM = getHHMMfromNode(o);
     if (!cHHMM) cHHMM = getHHMMfromNode(c);
 
-    // どれか欠けてたらスキップ（「— / —」の元を潰す）
+    // 欠けてたらスキップ
     if (typeof oDay !== 'number' || typeof cDay !== 'number' || !oHHMM || !cHHMM) continue;
 
     const oTime = hmPretty(oHHMM);
@@ -135,7 +135,7 @@ function normalize(json) {
   };
 }
 
-// 描画（定休日のみ「明日の営業時間」、それ以外は「営業時間」）
+// 描画（営業終了後は「明日の営業時間」。明日が休みなら「明日は定休日です」）
 function render(jsonRaw) {
   const statusEl = document.getElementById('status');
   const hoursEl  = document.getElementById('hours');
@@ -162,12 +162,21 @@ function render(jsonRaw) {
     headline = `ただいま、休憩中です（${next}〜再開）`;
     subline  = `営業時間　${formatSlots(slots)}`;
   } else if (st.state === '準備中') {
-    headline = st.finishedToday ? '本日の営業は終了しました' : 'ただいま、準備中です';
-    subline  = `営業時間　${formatSlots(slots)}`;
+    if (st.finishedToday) {
+      // ★ ここを変更：営業終了後は明日を表示。なければ明日は定休日
+      const ts = data?.tomorrow?.slots || [];
+      headline = '本日の営業は終了しました';
+      subline  = ts.length ? `明日の営業時間　${formatSlots(ts)}`
+                           : `明日は定休日です`;
+    } else {
+      headline = 'ただいま、準備中です';
+      subline  = `営業時間　${formatSlots(slots)}`;
+    }
   } else { // 定休日
     headline = '本日は定休日です';
     const ts = data?.tomorrow?.slots || [];
-    subline  = ts.length ? `明日の営業時間　${formatSlots(ts)}` : '';
+    subline  = ts.length ? `明日の営業時間　${formatSlots(ts)}`
+                         : `明日は定休日です`;
   }
 
   statusEl.textContent = headline;
