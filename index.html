@@ -5,54 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>営業時間</title>
 
-  <!-- Shippori Mincho -->
   <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
     :root{
       --fg:#fff; --sub-fg:#fff;
-
-      /* 既定のサイズ（URLで上書き可） */
       --fs-status:18px;   /* PC 上段 */
       --fs-hours:18px;    /* PC 下段 */
       --fs-status-sp:16px;/* SP 上段 */
       --fs-hours-sp:16px; /* SP 下段 */
     }
-
     html, body{
       margin:0; padding:0;
       background:transparent;
       color:var(--fg);
       font-family:'Shippori Mincho', serif;
     }
-
-    /* iframe内ラッパー */
     .wrap{
       margin:0; padding:0;
       line-height:1.9;
       display:flex; flex-direction:column;
       justify-content:center;
-      white-space:nowrap; /* 1行を保つ */
+      white-space:nowrap;
       align-items:flex-start; /* 既定は左寄せ */
       text-align:left;
     }
-
-    /* 上段（見出し） */
     #status{
       font-size:var(--fs-status);
       font-weight:600;
       letter-spacing:.12em;
     }
-
-    /* 下段（営業時間） */
     #hours{
       margin-top:.4em;
       font-size:var(--fs-hours);
       color:var(--sub-fg);
       letter-spacing:.2em;
     }
-
-    /* スマホ */
     @media (max-width:480px){
       #status{ font-size:var(--fs-status-sp); }
       #hours { font-size:var(--fs-hours-sp); }
@@ -65,21 +53,19 @@
     <div id="hours"></div>
   </div>
 
-  <!-- サイズ・整列制御（?size=xs|sm|md / ?pc=16,16&sp=14,14） -->
   <script>
+    // サイズ・整列の切替
     (function(){
       const r = document.documentElement;
       const q = new URLSearchParams(location.search);
       const wrap = document.querySelector('.wrap');
 
-      // プリセット
       const PRESET = {
         xs: { pc:[14,14], sp:[12,12] },
         sm: { pc:[14,14], sp:[14,14] },
         md: { pc:[16,16], sp:[16,16] }
       };
 
-      // ?size=xs|sm|md
       const size = q.get('size');
       if (size && PRESET[size]) {
         const {pc, sp} = PRESET[size];
@@ -95,7 +81,6 @@
         }
       }
 
-      // 直接指定 ?pc=16,16&sp=14,14
       const pc = q.get('pc');
       const sp = q.get('sp');
       if (pc) {
@@ -111,8 +96,8 @@
     })();
   </script>
 
-  <!-- 言語切替付きリアルタイム表示（v1/v0 JSON 両対応） -->
   <script>
+  // ---- 設定 ----
   const JSON_URL = './opening-hours.json';
   const REFRESH_MS = 30000;
   const LANG = new URLSearchParams(location.search).get('lang') || 'ja';
@@ -126,7 +111,6 @@
       HOURS: '営業時間',
       TODAY_HOURS: '本日の営業時間',
       TOMORROW_HOURS: '明日の営業時間',
-      TOMORROW_CLOSED: '明日は定休日です',
       FAIL: '現在、営業時間を取得できません',
       RETRY: '時間をおいて再読み込みしてください'
     },
@@ -139,66 +123,53 @@
       HOURS: 'Business hours',
       TODAY_HOURS: 'Today’s hours',
       TOMORROW_HOURS: 'Tomorrow’s hours',
-      TOMORROW_CLOSED: 'Closed tomorrow',
       FAIL: 'Unable to load hours',
       RETRY: 'Please try reloading later'
     }
   }[LANG];
 
-  /* ---------- helpers（v1/v0 両対応） ---------- */
+  // ---- helpers ----
+  const toHMnum = (hm) => Number(String(hm).replace(':',''));
+  const fmtHM = (h, m) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 
-  // HHMM を "HH:MM" に整形（いろんな形を受け取って正規化）
-  function hmPretty(hhmm){
+  // ✅ JSTの正しい求め方（ローカル→UTC→JST）
+  function nowInJST(offset = 540) {
+    const now = new Date();
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utcMs + offset * 60000);
+  }
+
+  function hmPretty(hhmm = '') {
     if (hhmm == null) return '';
-    // "HH:MM"
     if (/^\d{2}:\d{2}$/.test(String(hhmm))) return String(hhmm);
-    // number or "HHMM"
-    const s = String(hhmm).replace(':','').padStart(4,'0');
+    const s = String(hhmm).padStart(4,'0').replace(':','');
     if (/^\d{4}$/.test(s)) return `${s.slice(0,2)}:${s.slice(2,4)}`;
     return '';
   }
-  const toHMnum = (hm) => Number(hm.replace(':',''));
-  const fmtHM = (h, m) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-  const nowInJST = (offset = 540) =>
-    new Date(new Date().getTime() + (offset - new Date().getTimezoneOffset()) * 60000);
 
-  // v1/v0 どちらのノードでも HHMM を取り出す
-  function getHHMMfromNode(node){
+  function getHHMMfromNode(node) {
     if (!node) return null;
-    // v0: { time: "1100" }
     if (typeof node.time === 'string' && node.time.length >= 3) return node.time;
-
-    // v1: { hour, minute } or { hours, minutes }
     const h = node.hour ?? node.hours;
     const m = node.minute ?? node.minutes ?? 0;
     if (Number.isInteger(h)) return `${String(h).padStart(2,'0')}${String(m).padStart(2,'0')}`;
-
-    // v1別形: { startTime: "11:00" } / { endTime: "14:30" }
     if (typeof node.startTime === 'string') return node.startTime.replace(':','');
     if (typeof node.endTime   === 'string') return node.endTime.replace(':','');
-
-    // 文字列 "11:00" / 数字 1100 直接渡し
-    if (typeof node === 'string') return node.replace(':','');
-    if (typeof node === 'number') return String(node);
-
+    if (typeof node === 'string')  return node.replace(':','');
+    if (typeof node === 'number')  return String(node);
     return null;
   }
 
-  // periods → 指定曜日(0:日〜6:土)のスロット抽出（深夜跨ぎも吸収）
-  // v1(openDay/openTime/closeDay/closeTime) / v0(open/day/time, close/...) 両対応
-  function extractDaySlots(periods = [], gday){
+  function extractDaySlots(periods = [], gday) {
     const slots = [];
     for (const p of periods) {
       let oDay = p.openDay, cDay = p.closeDay;
-      let oHHMM = null,     cHHMM = null;
+      let oHHMM = null, cHHMM = null;
 
-      // v1 の時間フィールド
       if (p.openTime || p.closeTime) {
         oHHMM = getHHMMfromNode(p.openTime);
         cHHMM = getHHMMfromNode(p.closeTime);
       }
-
-      // v0 / フォールバック
       const o = p.open ?? p.opens ?? p.start ?? p;
       const c = p.close ?? p.closes ?? p.end   ?? p;
       if (oDay === undefined) oDay = o?.day ?? o?.openDay ?? p?.day;
@@ -206,23 +177,19 @@
       if (!oHHMM) oHHMM = getHHMMfromNode(o);
       if (!cHHMM) cHHMM = getHHMMfromNode(c);
 
-      // 欠けているものがあればスキップ
       if (typeof oDay !== 'number' || typeof cDay !== 'number' || !oHHMM || !cHHMM) continue;
 
       const oTime = hmPretty(oHHMM);
       const cTime = hmPretty(cHHMM);
 
-      // 同日
       if (oDay === gday && cDay === gday) {
         slots.push({ start: oTime, end: cTime });
         continue;
       }
-      // 当日→翌日
       if (oDay === gday && cDay === ((gday + 1) % 7)) {
         slots.push({ start: oTime, end: '23:59' });
         continue;
       }
-      // 前日→当日（0時台クローズ）
       const prev = (gday + 6) % 7;
       if (oDay === prev && cDay === gday) {
         slots.push({ start: '00:00', end: cTime });
@@ -232,7 +199,7 @@
     return slots.sort((a,b)=>a.start.localeCompare(b.start));
   }
 
-  function calcStatus(slots, jstDate){
+  function calcStatus(slots, jstDate) {
     if (!slots?.length) return { state: '定休日' };
     const cur = toHMnum(fmtHM(jstDate.getHours(), jstDate.getMinutes()));
     for (const s of slots) {
@@ -251,20 +218,25 @@
 
   const formatSlots = (slots=[]) => slots.map(s => `${s.start}–${s.end}`).join(' / ');
 
-  function normalize(json){
-    const periods =
-      json?.regularOpeningHours?.periods ||
-      json?.currentOpeningHours?.periods ||
-      json?.result?.opening_hours?.periods ||
-      [];
-
+  function normalize(json) {
     const offset = json?.utcOffsetMinutes ?? 540;
     const jstNow = nowInJST(offset);
     const gToday = jstNow.getDay();
     const gTomorrow = (gToday + 1) % 7;
 
-    const todaySlots    = extractDaySlots(periods, gToday);
-    const tomorrowSlots = extractDaySlots(periods, gTomorrow);
+    const todayFromJson    = json?.today?.slots ?? [];
+    const tomorrowFromJson = json?.tomorrow?.slots ?? [];
+
+    const periods =
+      json?.regularOpeningHours?.periods ||
+      json?.currentOpeningHours?.periods ||
+      json?.result?.opening_hours?.periods || [];
+
+    const todayCalc    = extractDaySlots(periods, gToday);
+    const tomorrowCalc = extractDaySlots(periods, gTomorrow);
+
+    const todaySlots    = todayFromJson.length    ? todayFromJson    : todayCalc;
+    const tomorrowSlots = tomorrowFromJson.length ? tomorrowFromJson : tomorrowCalc;
 
     return {
       utcOffsetMinutes: offset,
@@ -273,7 +245,7 @@
     };
   }
 
-  function render(jsonRaw){
+  function render(jsonRaw) {
     const statusEl = document.getElementById('status');
     const hoursEl  = document.getElementById('hours');
 
@@ -294,35 +266,30 @@
     if (st.state === '営業中') {
       headline = T.OPEN;
       subline  = `${T.HOURS}　${formatSlots(slots)}`;
-
     } else if (st.state === '休憩中') {
       const next = String(st.nextOpen).padStart(4,'0').replace(/(..)(..)/,'$1:$2');
       headline = T.BREAK(next);
       subline  = `${T.TODAY_HOURS}　${formatSlots(slots)}`;
-
     } else if (st.state === '準備中') {
       if (st.finishedToday) {
         headline = T.FINISH;
         const ts = data?.tomorrow?.slots || [];
-        subline  = ts.length ? `${T.TOMORROW_HOURS}　${formatSlots(ts)}`
-                             : T.TOMORROW_CLOSED;
+        subline  = ts.length ? `${T.TOMORROW_HOURS}　${formatSlots(ts)}` : `${T.TOMORROW_HOURS}　— / —`;
       } else {
         headline = T.PREP;
         subline  = `${T.TODAY_HOURS}　${formatSlots(slots)}`;
       }
-
-    } else { // 定休日
+    } else {
       headline = T.HOLIDAY;
       const ts = data?.tomorrow?.slots || [];
-      subline  = ts.length ? `${T.TOMORROW_HOURS}　${formatSlots(ts)}`
-                           : T.TOMORROW_CLOSED;
+      subline  = ts.length ? `${T.TOMORROW_HOURS}　${formatSlots(ts)}` : `${T.TOMORROW_HOURS}　— / —`;
     }
 
     statusEl.textContent = headline;
     hoursEl.textContent  = subline;
   }
 
-  async function loadJSON(){
+  async function loadJSON() {
     const url = `${JSON_URL}${JSON_URL.includes('?') ? '&' : '?'}v=${Date.now()}`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`opening-hours.json fetch failed: ${res.status}`);
@@ -335,7 +302,7 @@
     }
   }
 
-  async function boot(){
+  async function boot() {
     try {
       const json = await loadJSON();
       render(json);
