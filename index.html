@@ -65,6 +65,7 @@
     <div id="hours"></div>
   </div>
 
+  <!-- サイズ・整列制御（?size=xs|sm|md / ?pc=16,16&sp=14,14） -->
   <script>
     (function(){
       const r = document.documentElement;
@@ -110,7 +111,7 @@
     })();
   </script>
 
-  <!-- 言語切替付きリアルタイム表示 -->
+  <!-- 言語切替付きリアルタイム表示（v1/v0 JSON 両対応） -->
   <script>
   const JSON_URL = './opening-hours.json';
   const REFRESH_MS = 30000;
@@ -125,6 +126,7 @@
       HOURS: '営業時間',
       TODAY_HOURS: '本日の営業時間',
       TOMORROW_HOURS: '明日の営業時間',
+      TOMORROW_CLOSED: '明日は定休日です',
       FAIL: '現在、営業時間を取得できません',
       RETRY: '時間をおいて再読み込みしてください'
     },
@@ -137,39 +139,100 @@
       HOURS: 'Business hours',
       TODAY_HOURS: 'Today’s hours',
       TOMORROW_HOURS: 'Tomorrow’s hours',
+      TOMORROW_CLOSED: 'Closed tomorrow',
       FAIL: 'Unable to load hours',
       RETRY: 'Please try reloading later'
     }
   }[LANG];
 
-  const toHMnum = (hm) => Number(hm.replace(':',''));
-  const hmPretty = (hhmm='') => (hhmm.length===4 ? `${hhmm.slice(0,2)}:${hhmm.slice(2,4)}` : '');
-  const fmtHM = (h, m) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-  const nowInJST = (offset = 540) => new Date(new Date().getTime() + (offset - new Date().getTimezoneOffset()) * 60000);
+  /* ---------- helpers（v1/v0 両対応） ---------- */
 
-  function extractDaySlots(periods = [], gday) {
+  // HHMM を "HH:MM" に整形（いろんな形を受け取って正規化）
+  function hmPretty(hhmm){
+    if (hhmm == null) return '';
+    // "HH:MM"
+    if (/^\d{2}:\d{2}$/.test(String(hhmm))) return String(hhmm);
+    // number or "HHMM"
+    const s = String(hhmm).replace(':','').padStart(4,'0');
+    if (/^\d{4}$/.test(s)) return `${s.slice(0,2)}:${s.slice(2,4)}`;
+    return '';
+  }
+  const toHMnum = (hm) => Number(hm.replace(':',''));
+  const fmtHM = (h, m) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  const nowInJST = (offset = 540) =>
+    new Date(new Date().getTime() + (offset - new Date().getTimezoneOffset()) * 60000);
+
+  // v1/v0 どちらのノードでも HHMM を取り出す
+  function getHHMMfromNode(node){
+    if (!node) return null;
+    // v0: { time: "1100" }
+    if (typeof node.time === 'string' && node.time.length >= 3) return node.time;
+
+    // v1: { hour, minute } or { hours, minutes }
+    const h = node.hour ?? node.hours;
+    const m = node.minute ?? node.minutes ?? 0;
+    if (Number.isInteger(h)) return `${String(h).padStart(2,'0')}${String(m).padStart(2,'0')}`;
+
+    // v1別形: { startTime: "11:00" } / { endTime: "14:30" }
+    if (typeof node.startTime === 'string') return node.startTime.replace(':','');
+    if (typeof node.endTime   === 'string') return node.endTime.replace(':','');
+
+    // 文字列 "11:00" / 数字 1100 直接渡し
+    if (typeof node === 'string') return node.replace(':','');
+    if (typeof node === 'number') return String(node);
+
+    return null;
+  }
+
+  // periods → 指定曜日(0:日〜6:土)のスロット抽出（深夜跨ぎも吸収）
+  // v1(openDay/openTime/closeDay/closeTime) / v0(open/day/time, close/...) 両対応
+  function extractDaySlots(periods = [], gday){
     const slots = [];
     for (const p of periods) {
-      if (!p.open || !p.close) continue;
-      const o = p.open, c = p.close;
-      if (o.day === gday && c.day === gday) {
-        slots.push({ start: hmPretty(o.time), end: hmPretty(c.time) });
+      let oDay = p.openDay, cDay = p.closeDay;
+      let oHHMM = null,     cHHMM = null;
+
+      // v1 の時間フィールド
+      if (p.openTime || p.closeTime) {
+        oHHMM = getHHMMfromNode(p.openTime);
+        cHHMM = getHHMMfromNode(p.closeTime);
+      }
+
+      // v0 / フォールバック
+      const o = p.open ?? p.opens ?? p.start ?? p;
+      const c = p.close ?? p.closes ?? p.end   ?? p;
+      if (oDay === undefined) oDay = o?.day ?? o?.openDay ?? p?.day;
+      if (cDay === undefined) cDay = c?.day ?? c?.closeDay ?? p?.day;
+      if (!oHHMM) oHHMM = getHHMMfromNode(o);
+      if (!cHHMM) cHHMM = getHHMMfromNode(c);
+
+      // 欠けているものがあればスキップ
+      if (typeof oDay !== 'number' || typeof cDay !== 'number' || !oHHMM || !cHHMM) continue;
+
+      const oTime = hmPretty(oHHMM);
+      const cTime = hmPretty(cHHMM);
+
+      // 同日
+      if (oDay === gday && cDay === gday) {
+        slots.push({ start: oTime, end: cTime });
         continue;
       }
-      if (o.day === gday && c.day === ((gday + 1) % 7)) {
-        slots.push({ start: hmPretty(o.time), end: '23:59' });
+      // 当日→翌日
+      if (oDay === gday && cDay === ((gday + 1) % 7)) {
+        slots.push({ start: oTime, end: '23:59' });
         continue;
       }
+      // 前日→当日（0時台クローズ）
       const prev = (gday + 6) % 7;
-      if (o.day === prev && c.day === gday) {
-        slots.push({ start: '00:00', end: hmPretty(c.time) });
+      if (oDay === prev && cDay === gday) {
+        slots.push({ start: '00:00', end: cTime });
         continue;
       }
     }
     return slots.sort((a,b)=>a.start.localeCompare(b.start));
   }
 
-  function calcStatus(slots, jstDate) {
+  function calcStatus(slots, jstDate){
     if (!slots?.length) return { state: '定休日' };
     const cur = toHMnum(fmtHM(jstDate.getHours(), jstDate.getMinutes()));
     for (const s of slots) {
@@ -188,28 +251,32 @@
 
   const formatSlots = (slots=[]) => slots.map(s => `${s.start}–${s.end}`).join(' / ');
 
-  function normalize(json) {
+  function normalize(json){
     const periods =
       json?.regularOpeningHours?.periods ||
       json?.currentOpeningHours?.periods ||
       json?.result?.opening_hours?.periods ||
       [];
+
     const offset = json?.utcOffsetMinutes ?? 540;
     const jstNow = nowInJST(offset);
     const gToday = jstNow.getDay();
     const gTomorrow = (gToday + 1) % 7;
-    const todaySlots = extractDaySlots(periods, gToday);
+
+    const todaySlots    = extractDaySlots(periods, gToday);
     const tomorrowSlots = extractDaySlots(periods, gTomorrow);
+
     return {
       utcOffsetMinutes: offset,
-      today: { gDay:gToday, slots:todaySlots, isClosed: todaySlots.length===0 },
-      tomorrow: { gDay:gTomorrow, slots:tomorrowSlots, isClosed: tomorrowSlots.length===0 },
+      today:    { gDay:gToday,    slots:todaySlots,    isClosed: todaySlots.length===0 },
+      tomorrow:{ gDay:gTomorrow,  slots:tomorrowSlots, isClosed: tomorrowSlots.length===0 },
     };
   }
 
-  function render(jsonRaw) {
+  function render(jsonRaw){
     const statusEl = document.getElementById('status');
     const hoursEl  = document.getElementById('hours');
+
     if (!jsonRaw) {
       statusEl.textContent = T.FAIL;
       hoursEl.textContent  = T.RETRY;
@@ -227,25 +294,35 @@
     if (st.state === '営業中') {
       headline = T.OPEN;
       subline  = `${T.HOURS}　${formatSlots(slots)}`;
+
     } else if (st.state === '休憩中') {
       const next = String(st.nextOpen).padStart(4,'0').replace(/(..)(..)/,'$1:$2');
       headline = T.BREAK(next);
       subline  = `${T.TODAY_HOURS}　${formatSlots(slots)}`;
+
     } else if (st.state === '準備中') {
-      headline = st.finishedToday ? T.FINISH : T.PREP;
-      subline  = `${T.TODAY_HOURS}　${formatSlots(slots)}`;
-    } else {
+      if (st.finishedToday) {
+        headline = T.FINISH;
+        const ts = data?.tomorrow?.slots || [];
+        subline  = ts.length ? `${T.TOMORROW_HOURS}　${formatSlots(ts)}`
+                             : T.TOMORROW_CLOSED;
+      } else {
+        headline = T.PREP;
+        subline  = `${T.TODAY_HOURS}　${formatSlots(slots)}`;
+      }
+
+    } else { // 定休日
       headline = T.HOLIDAY;
-      subline  = (data?.tomorrow?.slots?.length ?? 0)
-        ? `${T.TOMORROW_HOURS}　${formatSlots(data.tomorrow.slots)}`
-        : '';
+      const ts = data?.tomorrow?.slots || [];
+      subline  = ts.length ? `${T.TOMORROW_HOURS}　${formatSlots(ts)}`
+                           : T.TOMORROW_CLOSED;
     }
 
     statusEl.textContent = headline;
     hoursEl.textContent  = subline;
   }
 
-  async function loadJSON() {
+  async function loadJSON(){
     const url = `${JSON_URL}${JSON_URL.includes('?') ? '&' : '?'}v=${Date.now()}`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`opening-hours.json fetch failed: ${res.status}`);
@@ -258,7 +335,7 @@
     }
   }
 
-  async function boot() {
+  async function boot(){
     try {
       const json = await loadJSON();
       render(json);
