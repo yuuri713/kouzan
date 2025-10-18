@@ -11,9 +11,9 @@
     :root{
       --fg:#fff; --sub-fg:#fff;
       --fs-status:18px;   /* PC 上段 */
-      --fs-hours:18px;    /* PC 下段 */
-      --fs-status-sp:16px;/* SP 上段 */
-      --fs-hours-sp:16px; /* SP 下段 */
+      --fs-hours:16px;    /* PC 下段 */
+      --fs-status-sp:14px;/* SP 上段 */
+      --fs-hours-sp:12px; /* SP 下段 */
     }
     html, body{
       margin:0; padding:0;
@@ -61,9 +61,9 @@
       const wrap = document.querySelector('.wrap');
 
       const PRESET = {
-        xs: { pc:[14,14], sp:[12,12] },
-        sm: { pc:[14,14], sp:[14,14] },
-        md: { pc:[16,16], sp:[16,16] }
+        xs: { pc:[14,12], sp:[14,12] },
+        sm: { pc:[16,14], sp:[16,14] },
+        md: { pc:[18,16], sp:[18,16] }
       };
 
       const size = q.get('size');
