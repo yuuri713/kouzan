@@ -1,11 +1,11 @@
 {
-  "fetchedAtUTC": "2025-10-22T15:28:24.649Z",
-  "fetchedAtLocal": "2025-10-23T00:28:24.648Z",
+  "fetchedAtUTC": "2025-10-23T15:28:38.652Z",
+  "fetchedAtLocal": "2025-10-24T00:28:38.643Z",
   "placeId": "ChIJ5aItaCPLA2ARI-sQQVyBvQs",
   "name": "関ヶ原 そば処幸山",
   "utcOffsetMinutes": 540,
   "today": {
-    "gDay": 4,
+    "gDay": 5,
     "slots": [
       {
         "start": "11:00",
@@ -16,11 +16,15 @@
     "isClosed": false
   },
   "tomorrow": {
-    "gDay": 5,
+    "gDay": 6,
     "slots": [
       {
         "start": "11:00",
         "end": "14:30"
+      },
+      {
+        "start": "17:00",
+        "end": "19:30"
       }
     ],
     "isClosed": false
