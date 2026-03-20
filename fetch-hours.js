@@ -20,72 +20,31 @@ function pickHHMM(node) {
   const h = node.hour ?? node.hours;
   const m = node.minute ?? node.minutes ?? 0;
   if (Number.isInteger(h)) return `${String(h).padStart(2,'0')}${String(m).padStart(2,'0')}`;
-  if (typeof node.startTime === 'string') return node.startTime.replace(':','');
-  if (typeof node.endTime   === 'string') return node.endTime.replace(':','');
-  if (typeof node === 'string' || typeof node === 'number') return String(node);
   return null;
 }
 
-function slotsFromWeekly(periods = [], gday) {
+// Googleから届いた「期間(periods)」の中から、指定された曜日のものをすべて抜き出す関数
+function getSlotsByDay(periods, gday) {
   const slots = [];
   for (const p of periods) {
-    const o = p.open  ?? p.opens  ?? p.start ?? p;
-    const c = p.close ?? p.closes ?? p.end   ?? p;
-    const oDay = (o?.day ?? o?.openDay  ?? p?.openDay  ?? p?.day);
-    const cDay = (c?.day ?? c?.closeDay ?? p?.closeDay ?? p?.day);
-    const oRaw = pickHHMM(o);
-    const cRaw = pickHHMM(c);
-    if (!oRaw || !cRaw || typeof oDay !== 'number' || typeof cDay !== 'number') continue;
-    const oTime = toHHMM(oRaw);
-    const cTime = toHHMM(cRaw);
-    if (oDay === gday && cDay === gday) {
-      slots.push({ start:oTime, end:cTime }); continue;
-    }
-    if (oDay === gday && cDay === ((gday + 1) % 7)) {
-      slots.push({ start:oTime, end:'23:59' }); continue;
-    }
-    const prev = (gday + 6) % 7;
-    if (oDay === prev && cDay === gday) {
-      slots.push({ start:'00:00', end:cTime }); continue;
+    const o = p.open;
+    const c = p.close;
+    // 曜日が一致するかチェック (0:日, 1:月...6:土)
+    if (o && o.day === gday) {
+      const sRaw = pickHHMM(o);
+      const cRaw = pickHHMM(c);
+      if (sRaw && cRaw) {
+        slots.push({ start: toHHMM(sRaw), end: toHHMM(cRaw) });
+      }
     }
   }
-  return slots.sort((a,b)=>a.start.localeCompare(b.start));
-}
-
-function slotsFromSpecialDay(sd) {
-  if (!sd) return [];
-  if (Array.isArray(sd.openIntervals)) {
-    return sd.openIntervals.map(iv => {
-      const sh = iv.start?.hours ?? iv.start?.hour ?? 0;
-      const sm = iv.start?.minutes ?? iv.start?.minute ?? 0;
-      const eh = iv.end?.hours   ?? iv.end?.hour   ?? 0;
-      const em = iv.end?.minutes ?? iv.end?.minute ?? 0;
-      return {
-        start: `${String(sh).padStart(2,'0')}:${String(sm).padStart(2,'0')}`,
-        end:   `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`,
-      };
-    }).sort((a,b)=>a.start.localeCompare(b.start));
-  }
-  const anyPeriods = sd.periods || sd.specialHourPeriods || sd.intervals || [];
-  if (Array.isArray(anyPeriods) && anyPeriods.length) {
-    const coerce = (n) => {
-      const s = pickHHMM(n);
-      return s ? toHHMM(s) : '';
-    };
-    return anyPeriods
-      .map(p => {
-        const s = coerce(p.openTime ?? p.open ?? p.start);
-        const e = coerce(p.closeTime ?? p.close ?? p.end);
-        return (s && e) ? { start:s, end:e } : null;
-      })
-      .filter(Boolean)
-      .sort((a,b)=>a.start.localeCompare(b.start));
-  }
-  return [];
+  // 時間順に並べて、二部制なら2つ入った状態で返す
+  return slots.sort((a, b) => a.start.localeCompare(b.start));
 }
 
 const pad2 = n => String(n).padStart(2,'0');
 const ymd  = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+
 function localDate(utcOffsetMinutes, baseUtc = new Date()) {
   const utcMs = baseUtc.getTime() + baseUtc.getTimezoneOffset() * 60000;
   return new Date(utcMs + utcOffsetMinutes * 60000);
@@ -115,8 +74,7 @@ function statusNow(slots, now) {
         'displayName',
         'utcOffsetMinutes',
         'regularOpeningHours.periods',
-        'currentOpeningHours.periods',
-        'currentOpeningHours.specialDays'
+        'currentOpeningHours.periods'
       ].join(','),
     };
 
@@ -128,28 +86,15 @@ function statusNow(slots, now) {
     const tomorrow = new Date(localNow.getTime() + 24*60*60*1000);
     const tomorrowG= tomorrow.getDay();
 
-    const todayStr    = ymd(localNow);
-    const tomorrowStr = ymd(tomorrow);
-
-const periods =
-      data?.currentOpeningHours?.periods ||
+    // ★重要：まず「特別（Current）」を見て、なければ「通常（Regular）」を見る
+    // Googleの二部制データ（periods）をそのまま使う
+    const periods = 
+      data?.currentOpeningHours?.periods || 
       data?.regularOpeningHours?.periods || [];
 
-    const specialDays = data?.currentOpeningHours?.specialDays || [];
-    const sdToday     = specialDays.find(d => d.date === todayStr);
-    const sdTomorrow  = specialDays.find(d => d.date === tomorrowStr);
-
-    // 基本は通常営業
-    let todaySlots    = slotsFromWeekly(periods, todayG);
-    let tomorrowSlots = slotsFromWeekly(periods, tomorrowG);
-
-    // ★店主の特別設定（祝日・臨時設定）があれば完全に上書き
-    if (sdToday) {
-      todaySlots = slotsFromSpecialDay(sdToday);
-    }
-    if (sdTomorrow) {
-      tomorrowSlots = slotsFromSpecialDay(sdTomorrow);
-    }
+    // 今日のスロットと明日のスロットを抽出（二部制なら2つ入る）
+    const todaySlots    = getSlotsByDay(periods, todayG);
+    const tomorrowSlots = getSlotsByDay(periods, tomorrowG);
 
     const json = {
       fetchedAtUTC: new Date().toISOString(),
@@ -171,7 +116,7 @@ const periods =
     };
 
     await fs.writeFile('opening-hours.json', JSON.stringify(json, null, 2), 'utf8');
-    console.log('✅ opening-hours.json updated');
+    console.log('✅ opening-hours.json updated with all slots');
   } catch (e) {
     console.error('❌ Failed to fetch hours:', e?.response?.data || e?.message || e);
     process.exitCode = 1;
