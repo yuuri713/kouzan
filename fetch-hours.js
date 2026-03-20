@@ -130,9 +130,9 @@ function statusNow(slots, now) {
     const todayStr    = ymd(localNow);
     const tomorrowStr = ymd(tomorrow);
 
-    const periods =
-      data?.regularOpeningHours?.periods ||
-      data?.currentOpeningHours?.periods  || [];
+const periods =
+      data?.currentOpeningHours?.periods ||
+      data?.regularOpeningHours?.periods || [];
 
     const specialDays = data?.currentOpeningHours?.specialDays || [];
     const sdToday     = specialDays.find(d => d.date === todayStr);
