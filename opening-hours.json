@@ -1,6 +1,6 @@
 {
-  "fetchedAtUTC": "2026-02-26T16:00:55.758Z",
-  "fetchedAtLocal": "2026-02-27T01:00:55.750Z",
+  "fetchedAtUTC": "2026-03-19T16:01:52.717Z",
+  "fetchedAtLocal": "2026-03-20T01:01:52.709Z",
   "placeId": "ChIJ5aItaCPLA2ARI-sQQVyBvQs",
   "name": "関ヶ原 そば処幸山",
   "utcOffsetMinutes": 540,
@@ -28,107 +28,5 @@
       }
     ],
     "isClosed": false
-  },
-  "result": {
-    "opening_hours": {
-      "periods": [
-        {
-          "open": {
-            "day": 0,
-            "hour": 11,
-            "minute": 0
-          },
-          "close": {
-            "day": 0,
-            "hour": 14,
-            "minute": 30
-          }
-        },
-        {
-          "open": {
-            "day": 0,
-            "hour": 17,
-            "minute": 0
-          },
-          "close": {
-            "day": 0,
-            "hour": 19,
-            "minute": 30
-          }
-        },
-        {
-          "open": {
-            "day": 2,
-            "hour": 11,
-            "minute": 0
-          },
-          "close": {
-            "day": 2,
-            "hour": 14,
-            "minute": 30
-          }
-        },
-        {
-          "open": {
-            "day": 3,
-            "hour": 11,
-            "minute": 0
-          },
-          "close": {
-            "day": 3,
-            "hour": 14,
-            "minute": 30
-          }
-        },
-        {
-          "open": {
-            "day": 4,
-            "hour": 11,
-            "minute": 0
-          },
-          "close": {
-            "day": 4,
-            "hour": 14,
-            "minute": 30
-          }
-        },
-        {
-          "open": {
-            "day": 5,
-            "hour": 11,
-            "minute": 0
-          },
-          "close": {
-            "day": 5,
-            "hour": 14,
-            "minute": 30
-          }
-        },
-        {
-          "open": {
-            "day": 6,
-            "hour": 11,
-            "minute": 0
-          },
-          "close": {
-            "day": 6,
-            "hour": 14,
-            "minute": 30
-          }
-        },
-        {
-          "open": {
-            "day": 6,
-            "hour": 17,
-            "minute": 0
-          },
-          "close": {
-            "day": 6,
-            "hour": 19,
-            "minute": 30
-          }
-        }
-      ]
-    }
   }
 }
