@@ -1,8 +1,8 @@
 {
-  "fetchedAtLocal": "2026-10-10T05:03:34.634Z",
+  "fetchedAtLocal": "2026-10-11T04:13:24.192Z",
   "name": "関ヶ原 そば処幸山",
   "today": {
-    "gDay": 6,
+    "gDay": 0,
     "slots": [
       {
         "start": "11:00",
@@ -16,7 +16,7 @@
     "statusNow": "準備中"
   },
   "tomorrow": {
-    "gDay": 0,
+    "gDay": 1,
     "slots": [
       {
         "start": "11:00",
